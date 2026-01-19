@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import SwiftData
+import StoreKit
 
 struct SettingsView: View {
     @Environment(\.theme) private var theme

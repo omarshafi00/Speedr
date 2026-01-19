@@ -176,10 +176,8 @@ struct ReaderView: View {
         // Only save session if user read for more than 5 seconds
         guard duration > 5, sessionWordsRead > 0 else { return }
 
-        // Update statistics in preferences
-        preferences.totalWordsRead += sessionWordsRead
-        preferences.totalReadingTime += duration
-        preferences.totalSessions += 1
+        // Use the recordSession method which handles all updates
+        preferences.recordSession(wordsRead: sessionWordsRead, duration: duration)
 
         // Reset session tracking
         sessionStartTime = nil
