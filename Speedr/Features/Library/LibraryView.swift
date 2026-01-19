@@ -16,6 +16,9 @@ struct LibraryView: View {
     /// All documents from SwiftData
     @Query(sort: \Document.lastRead, order: .reverse) private var documents: [Document]
 
+    /// StoreKit manager for subscription status
+    @State private var storeKit = StoreKitManager.shared
+
     /// Search text
     @State private var searchText = ""
 
@@ -25,12 +28,25 @@ struct LibraryView: View {
     /// Selected document for reading
     @State private var selectedDocument: Document?
 
+    /// Paywall state
+    @State private var showPaywall = false
+
     /// Error alert state
     @State private var showError = false
     @State private var errorMessage = ""
 
     /// Import in progress
     @State private var isImporting = false
+
+    /// Number of user-imported documents (excluding built-in)
+    private var userDocumentCount: Int {
+        documents.filter { !$0.isBuiltIn }.count
+    }
+
+    /// Whether user can import more documents
+    private var canImportMoreDocuments: Bool {
+        storeKit.isPro || userDocumentCount < Constants.Limits.freeDocumentLimit
+    }
 
     var body: some View {
         NavigationStack {
@@ -54,7 +70,7 @@ struct LibraryView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        showFileImporter = true
+                        handleAddDocument()
                     } label: {
                         Image(systemName: "plus")
                     }
@@ -70,14 +86,28 @@ struct LibraryView: View {
             .fullScreenCover(item: $selectedDocument) { document in
                 ReaderView(
                     text: document.content,
-                    title: document.title
+                    title: document.title,
+                    documentId: document.id
                 )
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView(trigger: .documentLimit)
             }
             .alert("Import Error", isPresented: $showError) {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(errorMessage)
             }
+        }
+    }
+
+    // MARK: - Add Document Handler
+
+    private func handleAddDocument() {
+        if canImportMoreDocuments {
+            showFileImporter = true
+        } else {
+            showPaywall = true
         }
     }
 
@@ -96,6 +126,11 @@ struct LibraryView: View {
     private var documentList: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
+                // Document limit banner (for free users)
+                if !storeKit.isPro && userDocumentCount >= Constants.Limits.freeDocumentLimit {
+                    documentLimitBanner
+                }
+
                 // My Documents Section
                 if !filteredDocuments.isEmpty {
                     Section {
@@ -108,7 +143,7 @@ struct LibraryView: View {
                             }
                         }
                     } header: {
-                        sectionHeader("MY DOCUMENTS")
+                        sectionHeader("MY DOCUMENTS", count: userDocumentCount)
                     }
                 }
 
@@ -120,6 +155,44 @@ struct LibraryView: View {
             .padding(.vertical, 12)
         }
         .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Document Limit Banner
+
+    private var documentLimitBanner: some View {
+        Button {
+            showPaywall = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.orange)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Document Limit Reached")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(theme.textPrimary)
+
+                    Text("Upgrade to Pro for unlimited documents")
+                        .font(Typography.caption)
+                        .foregroundColor(theme.textSecondary)
+                }
+
+                Spacer()
+
+                Text("UPGRADE")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(theme.accentBlue)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .padding(12)
+            .background(theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Constants.Layout.cardCornerRadius))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Filtered Documents
@@ -135,11 +208,19 @@ struct LibraryView: View {
 
     // MARK: - Section Header
 
-    private func sectionHeader(_ title: String) -> some View {
+    private func sectionHeader(_ title: String, count: Int? = nil) -> some View {
         HStack {
             Text(title)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(theme.textSecondary)
+
+            // Show document count with limit info for free users
+            if let count = count, !storeKit.isPro {
+                Text("(\(count)/\(Constants.Limits.freeDocumentLimit))")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(count >= Constants.Limits.freeDocumentLimit ? .orange : theme.textSecondary)
+            }
+
             Spacer()
         }
         .padding(.bottom, 4)

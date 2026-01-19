@@ -35,6 +35,9 @@ struct ReaderView: View {
     /// Optional document title
     var title: String?
 
+    /// Optional document ID for tracking reading sessions
+    var documentId: UUID?
+
     /// Dismiss action
     @Environment(\.dismiss) private var dismiss
     @Environment(\.theme) private var theme
@@ -42,17 +45,32 @@ struct ReaderView: View {
     /// Reader state
     @State private var viewModel: ReaderViewModel
 
+    /// StoreKit manager for subscription status
+    @State private var storeKit = StoreKitManager.shared
+
+    /// Preferences manager for user settings
+    @State private var preferences = PreferencesManager.shared
+
     /// Paywall state
     @State private var showPaywall = false
+
+    /// Paywall trigger reason
+    @State private var paywallTrigger: PaywallTrigger = .speedLimit
 
     /// Completed state
     @State private var showCompletedOverlay = false
 
+    /// Session tracking
+    @State private var sessionStartTime: Date?
+    @State private var sessionWordsRead: Int = 0
+    @State private var sessionMaxWPM: Int = 0
+
     // MARK: - Initialization
 
-    init(text: String, title: String? = nil) {
+    init(text: String, title: String? = nil, documentId: UUID? = nil) {
         self.text = text
         self.title = title
+        self.documentId = documentId
         self._viewModel = State(initialValue: ReaderViewModel(text: text))
     }
 
@@ -93,18 +111,78 @@ struct ReaderView: View {
                 completedOverlay
             }
         }
+        .onAppear {
+            syncWithPreferences()
+            startSession()
+        }
+        .onDisappear {
+            endSession()
+        }
         .onChange(of: viewModel.isCompleted) { _, isCompleted in
             if isCompleted {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showCompletedOverlay = true
                 }
+                endSession()
+            }
+        }
+        .onChange(of: storeKit.isPro) { _, isPro in
+            viewModel.isPro = isPro
+        }
+        .onChange(of: preferences.highlightColor) { _, newColor in
+            viewModel.highlightColor = newColor
+        }
+        .onChange(of: preferences.fontSize) { _, newSize in
+            viewModel.fontSizeMultiplier = newSize
+        }
+        .onChange(of: viewModel.wpm) { _, newWPM in
+            // Track max WPM during session
+            if newWPM > sessionMaxWPM {
+                sessionMaxWPM = newWPM
+            }
+        }
+        .onChange(of: viewModel.currentIndex) { oldIndex, newIndex in
+            // Track words read during session
+            if newIndex > oldIndex {
+                sessionWordsRead += (newIndex - oldIndex)
             }
         }
         .sheet(isPresented: $showPaywall) {
-            // TODO: PaywallView()
-            Text("Paywall - Upgrade to Pro for unlimited speed!")
-                .presentationDetents([.medium])
+            PaywallView(trigger: paywallTrigger)
         }
+    }
+
+    // MARK: - Preferences Sync
+
+    private func syncWithPreferences() {
+        viewModel.isPro = storeKit.isPro
+        viewModel.highlightColor = preferences.highlightColor
+        viewModel.fontSizeMultiplier = preferences.fontSize
+    }
+
+    // MARK: - Session Tracking
+
+    private func startSession() {
+        sessionStartTime = Date()
+        sessionWordsRead = 0
+        sessionMaxWPM = viewModel.wpm
+    }
+
+    private func endSession() {
+        guard let startTime = sessionStartTime else { return }
+
+        let duration = Date().timeIntervalSince(startTime)
+
+        // Only save session if user read for more than 5 seconds
+        guard duration > 5, sessionWordsRead > 0 else { return }
+
+        // Update statistics in preferences
+        preferences.totalWordsRead += sessionWordsRead
+        preferences.totalReadingTime += duration
+        preferences.totalSessions += 1
+
+        // Reset session tracking
+        sessionStartTime = nil
     }
 
     // MARK: - Top Bar
@@ -188,6 +266,7 @@ struct ReaderView: View {
     private var controlsSection: some View {
         ReaderControlsView(viewModel: viewModel) {
             // Speed limit reached - show paywall
+            paywallTrigger = .speedLimit
             showPaywall = true
         }
     }

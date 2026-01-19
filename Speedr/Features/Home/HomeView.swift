@@ -13,11 +13,20 @@ struct HomeView: View {
     @Environment(\.theme) private var theme
     @Environment(\.modelContext) private var modelContext
 
+    /// All documents from SwiftData (for counting)
+    @Query private var documents: [Document]
+
+    /// StoreKit manager for subscription status
+    @State private var storeKit = StoreKitManager.shared
+
     /// Controls whether the reader is shown
     @State private var showReader = false
 
     /// Controls whether the file importer is shown
     @State private var showFileImporter = false
+
+    /// Paywall state
+    @State private var showPaywall = false
 
     /// Imported document to read
     @State private var importedDocument: Document?
@@ -28,6 +37,16 @@ struct HomeView: View {
 
     /// Import in progress
     @State private var isImporting = false
+
+    /// Number of user-imported documents (excluding built-in)
+    private var userDocumentCount: Int {
+        documents.filter { !$0.isBuiltIn }.count
+    }
+
+    /// Whether user can import more documents
+    private var canImportMoreDocuments: Bool {
+        storeKit.isPro || userDocumentCount < Constants.Limits.freeDocumentLimit
+    }
 
     var body: some View {
         ZStack {
@@ -81,11 +100,17 @@ struct HomeView: View {
 
                     // Secondary CTA - Import Document
                     Button {
-                        showFileImporter = true
+                        handleImportDocument()
                     } label: {
                         HStack {
                             Image(systemName: "doc.fill")
                             Text("Import Document")
+
+                            // Show lock icon if at limit
+                            if !canImportMoreDocuments {
+                                Image(systemName: "lock.fill")
+                                    .font(.caption)
+                            }
                         }
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(theme.textPrimary)
@@ -115,7 +140,8 @@ struct HomeView: View {
         .fullScreenCover(item: $importedDocument) { document in
             ReaderView(
                 text: document.content,
-                title: document.title
+                title: document.title,
+                documentId: document.id
             )
         }
         .fileImporter(
@@ -125,10 +151,23 @@ struct HomeView: View {
         ) { result in
             handleFileImport(result)
         }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(trigger: .documentLimit)
+        }
         .alert("Import Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }
         } message: {
             Text(errorMessage)
+        }
+    }
+
+    // MARK: - Import Document Handler
+
+    private func handleImportDocument() {
+        if canImportMoreDocuments {
+            showFileImporter = true
+        } else {
+            showPaywall = true
         }
     }
 
