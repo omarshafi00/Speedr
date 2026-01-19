@@ -45,7 +45,7 @@ struct HomeView: View {
 
     /// Whether user can import more documents
     private var canImportMoreDocuments: Bool {
-        storeKit.isPro || userDocumentCount < Constants.Limits.freeDocumentLimit
+        storeKit.isPro || userDocumentCount < Constants.Limits.freeMaxDocuments
     }
 
     var body: some View {

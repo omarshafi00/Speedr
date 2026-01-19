@@ -45,7 +45,7 @@ struct LibraryView: View {
 
     /// Whether user can import more documents
     private var canImportMoreDocuments: Bool {
-        storeKit.isPro || userDocumentCount < Constants.Limits.freeDocumentLimit
+        storeKit.isPro || userDocumentCount < Constants.Limits.freeMaxDocuments
     }
 
     var body: some View {
@@ -127,7 +127,7 @@ struct LibraryView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 // Document limit banner (for free users)
-                if !storeKit.isPro && userDocumentCount >= Constants.Limits.freeDocumentLimit {
+                if !storeKit.isPro && userDocumentCount >= Constants.Limits.freeMaxDocuments {
                     documentLimitBanner
                 }
 
@@ -216,9 +216,9 @@ struct LibraryView: View {
 
             // Show document count with limit info for free users
             if let count = count, !storeKit.isPro {
-                Text("(\(count)/\(Constants.Limits.freeDocumentLimit))")
+                Text("(\(count)/\(Constants.Limits.freeMaxDocuments))")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(count >= Constants.Limits.freeDocumentLimit ? .orange : theme.textSecondary)
+                    .foregroundColor(count >= Constants.Limits.freeMaxDocuments ? .orange : theme.textSecondary)
             }
 
             Spacer()
