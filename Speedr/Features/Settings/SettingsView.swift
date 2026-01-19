@@ -298,12 +298,10 @@ struct SettingsView: View {
     // MARK: - Actions
 
     private func requestAppReview() {
-        // Request app review using StoreKit 2 API (iOS 16+)
+        // Request app review using StoreKit 2 API (iOS 18+)
         // Reference: RESOURCES.md - Section 3 (StoreKit 2)
-        Task {
-            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                await AppStore.requestReview(in: scene)
-            }
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            AppStore.requestReview(in: scene)
         }
     }
 }
