@@ -10,9 +10,9 @@ import SwiftData
 
 /// Represents a document that can be read in Speedr
 @Model
-final class Document {
+final class Document: Identifiable {
     /// Unique identifier
-    var id: UUID
+    @Attribute(.unique) var id: UUID
 
     /// Document title (filename or custom name)
     var title: String
@@ -58,7 +58,7 @@ final class Document {
         self.id = id
         self.title = title
         self.content = content
-        self.wordCount = wordCount ?? TextProcessor.splitIntoWords(content).count
+        self.wordCount = wordCount ?? content.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
         self.currentPosition = currentPosition
         self.dateAdded = dateAdded
         self.lastRead = lastRead
@@ -87,12 +87,29 @@ final class Document {
 
     /// Estimated time remaining at a given WPM
     func timeRemaining(at wpm: Int) -> TimeInterval {
-        TextProcessor.estimatedReadingTime(wordCount: wordsRemaining, wpm: wpm)
+        guard wpm > 0 else { return 0 }
+        return Double(wordsRemaining) / Double(wpm) * 60.0
     }
 
     /// Formatted time remaining string
-    func timeRemainingFormatted(at wpm: Int = Constants.Reader.defaultWPM) -> String {
-        TextProcessor.formatReadingTime(timeRemaining(at: wpm))
+    func timeRemainingFormatted(at wpm: Int = 300) -> String {
+        let seconds = timeRemaining(at: wpm)
+        let minutes = Int(seconds) / 60
+        let hours = minutes / 60
+        let remainingMinutes = minutes % 60
+
+        if hours > 0 {
+            if remainingMinutes > 0 {
+                return "\(hours) hr \(remainingMinutes) min"
+            }
+            return "\(hours) hr"
+        }
+
+        if minutes > 0 {
+            return "\(minutes) min"
+        }
+
+        return "< 1 min"
     }
 
     // MARK: - Methods
@@ -131,14 +148,10 @@ extension Document {
     }
 }
 
-// MARK: - Identifiable & Hashable
-
-extension Document: Identifiable {}
-
 // MARK: - Document Type
 
 /// Supported document types for import
-enum DocumentType: String, CaseIterable {
+enum DocumentType: String, CaseIterable, Sendable {
     case txt = "txt"
     case pdf = "pdf"
 

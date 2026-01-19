@@ -10,9 +10,9 @@ import SwiftData
 
 /// Records a single reading session for statistics
 @Model
-final class ReadingSession {
+final class ReadingSession: Identifiable {
     /// Unique identifier
-    var id: UUID
+    @Attribute(.unique) var id: UUID
 
     /// ID of the document that was read
     var documentId: UUID
@@ -74,17 +74,13 @@ final class ReadingSession {
     }
 }
 
-// MARK: - Identifiable
-
-extension ReadingSession: Identifiable {}
-
 // MARK: - Session Builder
 
 /// Helper to build a reading session from reader state
-struct ReadingSessionBuilder {
-    var documentId: UUID
-    var startTime: Date
-    var wordsReadStart: Int
+struct ReadingSessionBuilder: Sendable {
+    let documentId: UUID
+    let startTime: Date
+    let wordsReadStart: Int
     var wpmSamples: [Int] = []
 
     init(documentId: UUID, startPosition: Int) {
@@ -102,8 +98,8 @@ struct ReadingSessionBuilder {
     func build(endPosition: Int) -> ReadingSession {
         let wordsRead = max(0, endPosition - wordsReadStart)
         let duration = Date().timeIntervalSince(startTime)
-        let averageWPM = wpmSamples.isEmpty ? Constants.Reader.defaultWPM : wpmSamples.reduce(0, +) / wpmSamples.count
-        let maxWPM = wpmSamples.max() ?? Constants.Reader.defaultWPM
+        let averageWPM = wpmSamples.isEmpty ? 300 : wpmSamples.reduce(0, +) / wpmSamples.count
+        let maxWPM = wpmSamples.max() ?? 300
 
         return ReadingSession(
             documentId: documentId,
