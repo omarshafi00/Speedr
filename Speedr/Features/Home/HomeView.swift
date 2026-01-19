@@ -6,16 +6,28 @@
 //
 
 import SwiftUI
+import SwiftData
 import UniformTypeIdentifiers
 
 struct HomeView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.modelContext) private var modelContext
 
     /// Controls whether the reader is shown
     @State private var showReader = false
 
     /// Controls whether the file importer is shown
     @State private var showFileImporter = false
+
+    /// Imported document to read
+    @State private var importedDocument: Document?
+
+    /// Error handling
+    @State private var showError = false
+    @State private var errorMessage = ""
+
+    /// Import in progress
+    @State private var isImporting = false
 
     var body: some View {
         ZStack {
@@ -88,6 +100,11 @@ struct HomeView: View {
                 Spacer()
                     .frame(height: 40)
             }
+
+            // Loading overlay
+            if isImporting {
+                importingOverlay
+            }
         }
         .fullScreenCover(isPresented: $showReader) {
             ReaderView(
@@ -95,19 +112,84 @@ struct HomeView: View {
                 title: SampleTexts.demoTitle
             )
         }
+        .fullScreenCover(item: $importedDocument) { document in
+            ReaderView(
+                text: document.content,
+                title: document.title
+            )
+        }
         .fileImporter(
             isPresented: $showFileImporter,
-            allowedContentTypes: [.plainText, .pdf],
+            allowedContentTypes: DocumentImporter.supportedTypes,
             allowsMultipleSelection: false
         ) { result in
-            // TODO: Handle imported file in Phase 3
-            switch result {
-            case .success(let urls):
-                if let url = urls.first {
-                    print("Selected file: \(url)")
+            handleFileImport(result)
+        }
+        .alert("Import Error", isPresented: $showError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(errorMessage)
+        }
+    }
+
+    // MARK: - Importing Overlay
+
+    private var importingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(.white)
+
+                Text("Importing...")
+                    .font(Typography.body)
+                    .foregroundColor(.white)
+            }
+            .padding(32)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+    }
+
+    // MARK: - File Import Handling
+
+    private func handleFileImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            importDocument(from: url)
+
+        case .failure(let error):
+            errorMessage = error.localizedDescription
+            showError = true
+        }
+    }
+
+    private func importDocument(from url: URL) {
+        isImporting = true
+
+        Task {
+            do {
+                let document = try await DocumentImporter.importDocument(from: url)
+                await MainActor.run {
+                    // Save to SwiftData
+                    modelContext.insert(document)
+                    try? modelContext.save()
+
+                    isImporting = false
+
+                    // Open reader with imported document
+                    importedDocument = document
                 }
-            case .failure(let error):
-                print("File import error: \(error)")
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    showError = true
+                    isImporting = false
+                }
             }
         }
     }
@@ -117,4 +199,5 @@ struct HomeView: View {
     HomeView()
         .speedrTheme()
         .preferredColorScheme(.dark)
+        .modelContainer(for: [Document.self, ReadingSession.self], inMemory: true)
 }
