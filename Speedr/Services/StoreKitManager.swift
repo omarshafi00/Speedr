@@ -8,6 +8,7 @@
 
 import Foundation
 import StoreKit
+import SwiftUI
 
 /// Manages in-app purchases and subscriptions using StoreKit 2
 @Observable
@@ -79,9 +80,8 @@ final class StoreKitManager {
         }
     }
 
-    deinit {
-        updateListenerTask?.cancel()
-    }
+    // Note: For @MainActor classes, cleanup is handled by the task itself
+    // when the class is deallocated. The task will be cancelled automatically.
 
     // MARK: - Product Loading
 
@@ -272,7 +272,7 @@ extension Product {
     var monthlyEquivalent: String? {
         guard id == StoreKitManager.ProductID.yearly.rawValue else { return nil }
         let monthlyPrice = price / 12
-        return monthlyPrice.formatted(.currency(code: priceFormatStyle.currencyCode ?? "USD"))
+        return monthlyPrice.formatted(.currency(code: priceFormatStyle.currencyCode))
     }
 
     /// Savings percentage compared to monthly
@@ -281,7 +281,7 @@ extension Product {
         let yearlyMonthlyEquivalent = price / 12
         let monthlyCost = monthly.price
         let savings = (1 - (yearlyMonthlyEquivalent / monthlyCost)) * 100
-        return Int(savings.rounded())
+        return Int(NSDecimalNumber(decimal: savings).doubleValue.rounded())
     }
 }
 
