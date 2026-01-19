@@ -2,7 +2,7 @@
 //  SpeedrApp.swift
 //  Speedr
 //
-//  Created by user291679 on 1/19/26.
+//  Reference: PROJECT_SPEC.md - App entry point
 //
 
 import SwiftUI
@@ -12,6 +12,8 @@ struct SpeedrApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .speedrTheme()
+                .preferredColorScheme(.dark) // Default to dark theme
         }
     }
 }
