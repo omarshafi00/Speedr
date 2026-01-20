@@ -3,6 +3,7 @@
 //  Speedr
 //
 //  Reference: PROJECT_SPEC.md - "READER VIEW (Core Experience)"
+//  Reference: PROJECT_SPEC.md - "ONBOARDING POPUP (First Time Speed Hint)"
 //
 //  Layout:
 //  ┌─────────────────────────────────────────┐
@@ -60,10 +61,20 @@ struct ReaderView: View {
     /// Completed state
     @State private var showCompletedOverlay = false
 
+    /// Speed hint popup state
+    @State private var showSpeedHint = false
+
+    /// Timer for showing speed hint
+    @State private var speedHintTimer: Timer?
+
     /// Session tracking
     @State private var sessionStartTime: Date?
     @State private var sessionWordsRead: Int = 0
     @State private var sessionMaxWPM: Int = 0
+
+    /// Animation states
+    @State private var contentOpacity: Double = 0
+    @State private var controlsOffset: CGFloat = 50
 
     // MARK: - Initialization
 
@@ -98,6 +109,7 @@ struct ReaderView: View {
 
                 // Controls
                 controlsSection
+                    .offset(y: controlsOffset)
 
                 // Progress bar
                 progressSection
@@ -105,18 +117,28 @@ struct ReaderView: View {
                     .padding(.bottom, 16)
             }
             .padding(.horizontal, Constants.Layout.standardMargin)
+            .opacity(contentOpacity)
 
             // Completed overlay
             if showCompletedOverlay {
                 completedOverlay
             }
+
+            // Speed hint popup overlay
+            if showSpeedHint {
+                SpeedHintPopup(isPresented: $showSpeedHint)
+                    .transition(.opacity)
+            }
         }
         .onAppear {
             syncWithPreferences()
             startSession()
+            animateEntrance()
+            scheduleSpeedHintIfNeeded()
         }
         .onDisappear {
             endSession()
+            cancelSpeedHintTimer()
         }
         .onChange(of: viewModel.isCompleted) { _, isCompleted in
             if isCompleted {
@@ -147,9 +169,51 @@ struct ReaderView: View {
                 sessionWordsRead += (newIndex - oldIndex)
             }
         }
+        .onChange(of: showSpeedHint) { _, isShowing in
+            if !isShowing {
+                // Mark hint as seen when dismissed
+                preferences.hasSeenSpeedHint = true
+            }
+        }
         .sheet(isPresented: $showPaywall) {
             PaywallView(trigger: paywallTrigger)
         }
+    }
+
+    // MARK: - Entrance Animation
+
+    private func animateEntrance() {
+        withAnimation(.easeOut(duration: 0.4)) {
+            contentOpacity = 1
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.1)) {
+            controlsOffset = 0
+        }
+    }
+
+    // MARK: - Speed Hint Scheduling
+
+    private func scheduleSpeedHintIfNeeded() {
+        // Only show if user hasn't seen it before
+        guard !preferences.hasSeenSpeedHint else { return }
+
+        // Show 3 seconds after starting to read
+        // Reference: PROJECT_SPEC.md - "Appears 3 seconds after user starts reading for the first time"
+        speedHintTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+            // Only show if user is actively playing
+            if viewModel.isPlaying {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    showSpeedHint = true
+                }
+                // Pause reading while showing hint
+                viewModel.pause()
+            }
+        }
+    }
+
+    private func cancelSpeedHintTimer() {
+        speedHintTimer?.invalidate()
+        speedHintTimer = nil
     }
 
     // MARK: - Preferences Sync
