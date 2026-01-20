@@ -98,9 +98,7 @@ struct GlassCardModifier: ViewModifier {
         if #available(iOS 26.0, *) {
             content
                 .background(
-                    RoundedRectangle(cornerRadius: cornerRadius)
-                        .fill(.clear)
-                        .glassEffect(glassStyle)
+                    glassBackgroundView
                 )
         } else {
             content
@@ -112,11 +110,17 @@ struct GlassCardModifier: ViewModifier {
     }
 
     @available(iOS 26.0, *)
-    private var glassStyle: some GlassEffectStyle {
+    @ViewBuilder
+    private var glassBackgroundView: some View {
         if let tint = tintColor {
-            return .regular.tint(tint)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(.clear)
+                .glassEffect(.regular.tint(tint))
+        } else {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(.clear)
+                .glassEffect(.regular)
         }
-        return .regular
     }
 }
 
@@ -210,7 +214,7 @@ extension View {
 
 extension ButtonStyle where Self == GlassButtonStyle {
     /// Glass button style for secondary buttons
-    static var glass: GlassButtonStyle {
+    static var glassStyle: GlassButtonStyle {
         GlassButtonStyle()
     }
 
@@ -220,7 +224,7 @@ extension ButtonStyle where Self == GlassButtonStyle {
     }
 
     /// Glass button style with custom tint
-    static func glass(tint: Color) -> GlassButtonStyle {
+    static func glassTinted(_ tint: Color) -> GlassButtonStyle {
         GlassButtonStyle(tintColor: tint)
     }
 }
@@ -233,10 +237,10 @@ extension ButtonStyle where Self == GlassButtonStyle {
             .buttonStyle(.glassPrimary)
 
         Button("Secondary Button") { }
-            .buttonStyle(.glass)
+            .buttonStyle(.glassStyle)
 
         Button("Tinted Button") { }
-            .buttonStyle(.glass(tint: .orange))
+            .buttonStyle(.glassTinted(.orange))
 
         Button("Disabled Button") { }
             .buttonStyle(.glassPrimary)
