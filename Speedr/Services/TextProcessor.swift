@@ -97,8 +97,9 @@ struct TextProcessor {
 
     // MARK: - Word Positioning
 
-    /// Calculate horizontal offset to align highlighted letter with focal point
-    /// The focal point is at 25% from the left of the display area
+    /// Calculate horizontal offset to align highlighted letter with focal point notches
+    /// The notches are at 25% from the left of the focal point overlay (240pt wide)
+    /// In a centered ZStack, the notch is 60pt LEFT of center (120 - 60 = 60)
     /// - Parameters:
     ///   - word: The word to position
     ///   - fontSize: The font size being used
@@ -114,17 +115,23 @@ struct TextProcessor {
         let highlightIndex = findHighlightIndex(word: word)
         let characterWidth = fontSize * characterWidthFactor
 
-        // Position of the highlighted letter's center
-        let highlightPosition = CGFloat(highlightIndex) * characterWidth + (characterWidth / 2)
-
-        // The highlighted letter should align with the focal point
-        // Since the word is displayed centered by default, we need to offset it
-        // so the 2nd letter aligns with where the focal point notches are
+        // Calculate word width and position of highlighted letter's center within the word
         let wordWidth = CGFloat(word.count) * characterWidth
-        let wordCenter = wordWidth / 2
+        let highlightLetterCenter = CGFloat(highlightIndex) * characterWidth + (characterWidth / 2)
 
-        // Offset needed to move highlighted letter to focal point position
-        return wordCenter - highlightPosition
+        // The focal point overlay is 240pt wide (Constants.FocalPoint.lineLength * 2)
+        // Notch is at 25% from left = 60pt from left edge
+        // In a centered layout, the notch is at: 60 - 120 = -60pt from center
+        let focalPointWidth = Constants.FocalPoint.lineLength * 2  // 240pt
+        let notchPositionFromCenter = (focalPointWidth * 0.25) - (focalPointWidth / 2)  // -60pt
+
+        // The word is centered by default (SwiftUI Text centers in its frame)
+        // So the highlighted letter's position from center is:
+        // highlightLetterCenter - (wordWidth / 2)
+        let highlightPositionFromCenter = highlightLetterCenter - (wordWidth / 2)
+
+        // Offset = where we want it - where it currently is
+        return notchPositionFromCenter - highlightPositionFromCenter
     }
 
     // MARK: - Timing Calculation
