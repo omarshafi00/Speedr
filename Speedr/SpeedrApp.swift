@@ -13,6 +13,9 @@ struct SpeedrApp: App {
     /// SwiftData model container for persistence
     let container: ModelContainer
 
+    /// Preferences manager to observe theme changes
+    @State private var preferences = PreferencesManager.shared
+
     init() {
         do {
             let schema = Schema([
@@ -36,7 +39,7 @@ struct SpeedrApp: App {
         WindowGroup {
             ContentView()
                 .speedrTheme()
-                .preferredColorScheme(.dark) // Default to dark theme
+                .preferredColorScheme(preferences.colorScheme)
         }
         .modelContainer(container)
     }
