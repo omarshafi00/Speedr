@@ -60,8 +60,8 @@ enum Constants {
         /// Default font size for word display: 48pt
         static let defaultFontSize: CGFloat = 48
 
-        /// Minimum reading speed: 10 WPM
-        static let minWPM: Int = 10
+        /// Minimum reading speed: 100 WPM
+        static let minWPM: Int = 100
 
         /// Maximum reading speed (Pro): 1500 WPM
         static let maxWPM: Int = 1500

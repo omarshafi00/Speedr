@@ -27,6 +27,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 /// Full-screen RSVP reader view
 struct ReaderView: View {
@@ -39,9 +40,13 @@ struct ReaderView: View {
     /// Optional document ID for tracking reading sessions
     var documentId: UUID?
 
+    /// Starting position (word index) to resume from
+    var startPosition: Int = 0
+
     /// Dismiss action
     @Environment(\.dismiss) private var dismiss
     @Environment(\.theme) private var theme
+    @Environment(\.modelContext) private var modelContext
 
     /// Reader state
     @State private var viewModel: ReaderViewModel
@@ -78,10 +83,11 @@ struct ReaderView: View {
 
     // MARK: - Initialization
 
-    init(text: String, title: String? = nil, documentId: UUID? = nil) {
+    init(text: String, title: String? = nil, documentId: UUID? = nil, startPosition: Int = 0) {
         self.text = text
         self.title = title
         self.documentId = documentId
+        self.startPosition = startPosition
         self._viewModel = State(initialValue: ReaderViewModel(text: text))
     }
 
@@ -135,10 +141,15 @@ struct ReaderView: View {
             startSession()
             animateEntrance()
             scheduleSpeedHintIfNeeded()
+            // Jump to saved position if provided
+            if startPosition > 0 {
+                viewModel.jumpToWord(at: startPosition)
+            }
         }
         .onDisappear {
             endSession()
             cancelSpeedHintTimer()
+            saveDocumentProgress()
         }
         .onChange(of: viewModel.isCompleted) { _, isCompleted in
             if isCompleted {
@@ -247,6 +258,29 @@ struct ReaderView: View {
         sessionStartTime = nil
     }
 
+    // MARK: - Document Progress Saving
+
+    private func saveDocumentProgress() {
+        // Only save if we have a document ID
+        guard let docId = documentId else { return }
+
+        // Fetch the document from SwiftData
+        let descriptor = FetchDescriptor<Document>(
+            predicate: #Predicate { $0.id == docId }
+        )
+
+        do {
+            let documents = try modelContext.fetch(descriptor)
+            if let document = documents.first {
+                // Update the document's current position
+                document.updatePosition(viewModel.currentIndex)
+                try modelContext.save()
+            }
+        } catch {
+            print("Error saving document progress: \(error)")
+        }
+    }
+
     // MARK: - Top Bar
 
     private var topBar: some View {
@@ -318,19 +352,35 @@ struct ReaderView: View {
 
     private var wpmIndicator: some View {
         HStack {
+            // Music button (left side)
+            MusicButton(isPro: storeKit.isPro) {
+                if storeKit.isPro {
+                    // TODO: Open music player
+                } else {
+                    // Show paywall for free users
+                    paywallTrigger = .musicFeature
+                    showPaywall = true
+                }
+            }
+
             Spacer()
-            WPMDisplayView(wpm: viewModel.wpm)
+
+            // WPM display with highlight color
+            WPMDisplayView(wpm: viewModel.wpm, highlightColor: viewModel.highlightColor)
         }
     }
 
     // MARK: - Controls Section
 
     private var controlsSection: some View {
-        ReaderControlsView(viewModel: viewModel) {
-            // Speed limit reached - show paywall
-            paywallTrigger = .speedLimit
-            showPaywall = true
-        }
+        ReaderControlsView(
+            viewModel: viewModel,
+            onSpeedLimitReached: {
+                // Speed limit reached - show paywall
+                paywallTrigger = .speedLimit
+                showPaywall = true
+            }
+        )
     }
 
     // MARK: - Progress Section

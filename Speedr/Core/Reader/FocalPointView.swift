@@ -4,19 +4,20 @@
 //
 //  Reference: PROJECT_SPEC.md - "FOCAL POINT STRUCTURE"
 //
-//  Structure:
-//      ─────────────────┬─────────────────
-//                       │  (8pt notch)
+//  Structure (notches at 25% from left):
+//      ────────┬────────────────────────────────
+//              │  (8pt notch)
 //
-//                word here
+//           word here (2nd letter aligned with notch)
 //
-//                       │  (8pt notch)
-//      ─────────────────┴─────────────────
+//              │  (8pt notch)
+//      ────────┴────────────────────────────────
 //
 
 import SwiftUI
 
 /// Displays the focal point lines and notches for the RSVP reader
+/// Notches are positioned at 25% from the left of the total line width
 struct FocalPointView: View {
     @Environment(\.theme) private var theme
 
@@ -41,7 +42,7 @@ struct FocalPointView: View {
 
 // MARK: - Focal Line View
 
-/// Individual focal line (top or bottom) with center notch
+/// Individual focal line (top or bottom) with notch at 25% from left
 struct FocalLineView: View {
     enum Position {
         case top
@@ -57,37 +58,37 @@ struct FocalLineView: View {
         VStack(spacing: 0) {
             if position == .bottom {
                 // Notch above line for bottom position
-                notch
+                notchWithOffset
             }
 
-            // Horizontal line with gap in center
-            HStack(spacing: 0) {
-                // Left line
-                Rectangle()
-                    .fill(theme.focalLines.opacity(config.lineOpacity))
-                    .frame(width: config.lineLength, height: config.lineWidth)
-
-                // Center gap (for notch)
-                Spacer()
-                    .frame(width: config.notchWidth)
-
-                // Right line
-                Rectangle()
-                    .fill(theme.focalLines.opacity(config.lineOpacity))
-                    .frame(width: config.lineLength, height: config.lineWidth)
-            }
+            // Horizontal line (continuous)
+            Rectangle()
+                .fill(theme.focalLines.opacity(config.lineOpacity))
+                .frame(width: config.totalWidth, height: config.lineWidth)
 
             if position == .top {
                 // Notch below line for top position
-                notch
+                notchWithOffset
             }
         }
     }
 
-    private var notch: some View {
-        Rectangle()
-            .fill(theme.focalLines.opacity(config.lineOpacity))
-            .frame(width: config.notchWidth, height: config.notchHeight)
+    /// Notch positioned at 25% from the left
+    private var notchWithOffset: some View {
+        HStack(spacing: 0) {
+            // Left spacer (25% of total width minus half the notch width)
+            Spacer()
+                .frame(width: config.notchOffsetFromLeft - config.notchWidth / 2)
+
+            // The notch
+            Rectangle()
+                .fill(theme.focalLines.opacity(config.lineOpacity))
+                .frame(width: config.notchWidth, height: config.notchHeight)
+
+            // Right spacer
+            Spacer()
+        }
+        .frame(width: config.totalWidth)
     }
 }
 
@@ -98,14 +99,14 @@ struct FocalPointConfig {
     /// Line thickness: 1pt
     let lineWidth: CGFloat = Constants.FocalPoint.lineWidth
 
-    /// Each horizontal line length: 120pt
-    let lineLength: CGFloat = Constants.FocalPoint.lineLength
+    /// Total horizontal line length: 240pt (full width)
+    let totalWidth: CGFloat = Constants.FocalPoint.lineLength * 2
 
     /// Vertical notch height: 8pt
     let notchHeight: CGFloat = Constants.FocalPoint.notchHeight
 
-    /// Notch thickness: 1pt
-    let notchWidth: CGFloat = Constants.FocalPoint.notchWidth
+    /// Notch thickness: 2pt (slightly thicker for visibility)
+    let notchWidth: CGFloat = 2.0
 
     /// Space between line and word: 24pt
     let gapFromWord: CGFloat = Constants.FocalPoint.gapFromWord
@@ -116,15 +117,15 @@ struct FocalPointConfig {
     /// Estimated height for word area
     let wordAreaHeight: CGFloat = 60
 
+    /// Notch position: 25% from the left of the total width
+    var notchOffsetFromLeft: CGFloat {
+        totalWidth * 0.25
+    }
+
     /// Total height of the focal point structure
     var totalHeight: CGFloat {
         // Top line + notch + gap + word area + gap + notch + bottom line
         lineWidth + notchHeight + gapFromWord + wordAreaHeight + gapFromWord + notchHeight + lineWidth
-    }
-
-    /// Width needed for the focal lines
-    var totalWidth: CGFloat {
-        lineLength + notchWidth + lineLength
     }
 }
 
@@ -140,44 +141,46 @@ struct FocalPointOverlay: View {
         VStack(spacing: 0) {
             // Top focal line with notch pointing down
             VStack(spacing: 0) {
-                HStack(spacing: 0) {
-                    Rectangle()
-                        .fill(theme.focalLines.opacity(config.lineOpacity))
-                        .frame(width: config.lineLength, height: config.lineWidth)
-
-                    Spacer()
-                        .frame(width: config.notchWidth)
-
-                    Rectangle()
-                        .fill(theme.focalLines.opacity(config.lineOpacity))
-                        .frame(width: config.lineLength, height: config.lineWidth)
-                }
-
+                // Horizontal line
                 Rectangle()
                     .fill(theme.focalLines.opacity(config.lineOpacity))
-                    .frame(width: config.notchWidth, height: config.notchHeight)
+                    .frame(width: config.totalWidth, height: config.lineWidth)
+
+                // Notch at 25% from left
+                HStack(spacing: 0) {
+                    Spacer()
+                        .frame(width: config.notchOffsetFromLeft - config.notchWidth / 2)
+
+                    Rectangle()
+                        .fill(theme.focalLines.opacity(config.lineOpacity))
+                        .frame(width: config.notchWidth, height: config.notchHeight)
+
+                    Spacer()
+                }
+                .frame(width: config.totalWidth)
             }
 
             Spacer()
 
             // Bottom focal line with notch pointing up
             VStack(spacing: 0) {
-                Rectangle()
-                    .fill(theme.focalLines.opacity(config.lineOpacity))
-                    .frame(width: config.notchWidth, height: config.notchHeight)
-
+                // Notch at 25% from left
                 HStack(spacing: 0) {
+                    Spacer()
+                        .frame(width: config.notchOffsetFromLeft - config.notchWidth / 2)
+
                     Rectangle()
                         .fill(theme.focalLines.opacity(config.lineOpacity))
-                        .frame(width: config.lineLength, height: config.lineWidth)
+                        .frame(width: config.notchWidth, height: config.notchHeight)
 
                     Spacer()
-                        .frame(width: config.notchWidth)
-
-                    Rectangle()
-                        .fill(theme.focalLines.opacity(config.lineOpacity))
-                        .frame(width: config.lineLength, height: config.lineWidth)
                 }
+                .frame(width: config.totalWidth)
+
+                // Horizontal line
+                Rectangle()
+                    .fill(theme.focalLines.opacity(config.lineOpacity))
+                    .frame(width: config.totalWidth, height: config.lineWidth)
             }
         }
     }

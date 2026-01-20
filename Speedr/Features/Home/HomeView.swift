@@ -141,7 +141,8 @@ struct HomeView: View {
             ReaderView(
                 text: document.content,
                 title: document.title,
-                documentId: document.id
+                documentId: document.id,
+                startPosition: document.currentPosition
             )
         }
         .fileImporter(

@@ -5,32 +5,44 @@
 //  Reference: PROJECT_SPEC.md - "SPEED CONTROLS"
 //  Reference: RESOURCES.md - Section 2 (Liquid Glass)
 //
-//  Controls layout:
-//  ┌──────┐ ┌────────────────┐ ┌──────┐
-//  │  ⏪  │ │       ⏸        │ │  ⏩  │
-//  │      │ │                │ │      │
-//  └──────┘ └────────────────┘ └──────┘
+//  Controls layout (5 circular glass buttons):
+//  ┌────┐ ┌────┐ ┌──────┐ ┌────┐ ┌────┐
+//  │ ⏪ │ │ ◀◀ │ │  ⏸   │ │ ▶▶ │ │ ⏩ │
+//  └────┘ └────┘ └──────┘ └────┘ └────┘
+//  speed  prev    play    next  speed
+//  down   word   /pause   word   up
 //
 
 import SwiftUI
 
-/// Reader control buttons (speed down, play/pause, speed up)
+/// Reader control buttons (5 circular glass buttons)
+/// Speed down | Prev word | Play/Pause | Next word | Speed up
 struct ReaderControlsView: View {
     @Bindable var viewModel: ReaderViewModel
 
     /// Called when speed limit is hit (for showing paywall)
     var onSpeedLimitReached: (() -> Void)?
 
+    /// Called when music button is tapped (for showing paywall for free users)
+    var onMusicTapped: (() -> Void)?
+
     @Environment(\.theme) private var theme
 
     /// Timer for continuous speed adjustment on long press
     @State private var longPressTimer: Timer?
 
+    /// Small button size
+    private let smallButtonSize: CGFloat = 50
+
+    /// Large (play/pause) button size
+    private let largeButtonSize: CGFloat = 70
+
     var body: some View {
-        HStack(spacing: 16) {
-            // Speed Down Button
-            SpeedButton(
-                systemImage: "backward.fill",
+        HStack(spacing: 12) {
+            // Speed Down Button (leftmost)
+            GlassCircleButton(
+                systemImage: "minus",
+                size: smallButtonSize,
                 isEnabled: viewModel.canDecreaseSpeed
             ) {
                 viewModel.decreaseSpeed()
@@ -40,17 +52,39 @@ struct ReaderControlsView: View {
                 stopContinuousAdjustment()
             }
 
-            // Play/Pause Button (larger, central)
-            PlayPauseButton(
-                isPlaying: viewModel.isPlaying
+            // Previous Word Button
+            GlassCircleButton(
+                systemImage: "backward.fill",
+                size: smallButtonSize,
+                isEnabled: viewModel.currentIndex > 0
+            ) {
+                viewModel.previousWord()
+            }
+
+            // Play/Pause Button (center, larger)
+            GlassCircleButton(
+                systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill",
+                size: largeButtonSize,
+                isPrimary: true,
+                isEnabled: true
             ) {
                 viewModel.togglePlayPause()
             }
 
-            // Speed Up Button
-            SpeedButton(
+            // Next Word Button
+            GlassCircleButton(
                 systemImage: "forward.fill",
-                isEnabled: viewModel.canIncreaseSpeed
+                size: smallButtonSize,
+                isEnabled: viewModel.currentIndex < viewModel.totalWords - 1
+            ) {
+                viewModel.nextWord()
+            }
+
+            // Speed Up Button (rightmost)
+            GlassCircleButton(
+                systemImage: "plus",
+                size: smallButtonSize,
+                isEnabled: true // Always enabled - will show paywall if at limit
             ) {
                 handleSpeedIncrease()
             } onLongPressStart: {
@@ -107,40 +141,48 @@ struct ReaderControlsView: View {
     }
 }
 
-// MARK: - Speed Button
+// MARK: - Glass Circle Button
 
-/// Button for speed up/down with long press support
-struct SpeedButton: View {
+/// Circular button with glass effect for reader controls
+struct GlassCircleButton: View {
     let systemImage: String
+    let size: CGFloat
+    var isPrimary: Bool = false
     let isEnabled: Bool
     let onTap: () -> Void
-    let onLongPressStart: () -> Void
-    let onLongPressEnd: () -> Void
+    var onLongPressStart: (() -> Void)? = nil
+    var onLongPressEnd: (() -> Void)? = nil
 
     @Environment(\.theme) private var theme
     @State private var isPressed = false
-
-    private let buttonSize: CGFloat = 60
 
     var body: some View {
         Button {
             onTap()
         } label: {
-            Image(systemName: systemImage)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(isEnabled ? theme.textPrimary : theme.textSecondary)
-                .frame(width: buttonSize, height: buttonSize)
-                .background(theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .opacity(isEnabled ? 1.0 : 0.5)
+            ZStack {
+                // Glass background
+                Circle()
+                    .fill(isPrimary ? theme.accentBlue : theme.surface.opacity(0.8))
+
+                // Icon
+                Image(systemName: systemImage)
+                    .font(.system(size: size * 0.36, weight: .semibold))
+                    .foregroundColor(isPrimary ? .white : (isEnabled ? theme.textPrimary : theme.textSecondary.opacity(0.5)))
+            }
+            .frame(width: size, height: size)
+            .opacity(isEnabled ? 1.0 : 0.5)
+            .scaleEffect(isPressed ? 0.92 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
-        .disabled(!isEnabled)
+        .buttonStyle(.plain)
+        .disabled(!isEnabled && !isPrimary)
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.3)
                 .onEnded { _ in
-                    guard isEnabled else { return }
+                    guard isEnabled, onLongPressStart != nil else { return }
                     isPressed = true
-                    onLongPressStart()
+                    onLongPressStart?()
                 }
         )
         .simultaneousGesture(
@@ -148,7 +190,7 @@ struct SpeedButton: View {
                 .onEnded { _ in
                     if isPressed {
                         isPressed = false
-                        onLongPressEnd()
+                        onLongPressEnd?()
                     }
                 }
         )
@@ -156,45 +198,57 @@ struct SpeedButton: View {
     }
 }
 
-// MARK: - Play/Pause Button
-
-/// Central play/pause toggle button
-struct PlayPauseButton: View {
-    let isPlaying: Bool
-    let onTap: () -> Void
-
-    @Environment(\.theme) private var theme
-
-    private let buttonWidth: CGFloat = 120
-    private let buttonHeight: CGFloat = 60
-
-    var body: some View {
-        Button {
-            onTap()
-        } label: {
-            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(width: buttonWidth, height: buttonHeight)
-                .background(theme.accentBlue)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-        }
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: isPlaying)
-    }
-}
-
 // MARK: - WPM Display
 
-/// Displays current reading speed
+/// Displays current reading speed with highlight color
 struct WPMDisplayView: View {
     let wpm: Int
+    var highlightColor: Color = ThemeColors.highlightRed
 
     @Environment(\.theme) private var theme
 
     var body: some View {
         Text("\(wpm) wpm")
             .font(Typography.wpmDisplay)
-            .foregroundColor(theme.textSecondary)
+            .foregroundColor(highlightColor)
+    }
+}
+
+// MARK: - Music Button
+
+/// Music button for reader view - shows paywall for free users
+struct MusicButton: View {
+    let isPro: Bool
+    let onTap: () -> Void
+
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Button {
+            onTap()
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(theme.surface.opacity(0.8))
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: isPro ? "music.note" : "music.note")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(theme.textSecondary)
+
+                // Lock badge for free users
+                if !isPro {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(4)
+                        .background(theme.accentBlue)
+                        .clipShape(Circle())
+                        .offset(x: 14, y: -14)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -287,14 +341,14 @@ struct CompactReaderControls: View {
 
 // MARK: - Previews
 
-#Preview("Reader Controls") {
+#Preview("Reader Controls - 5 Buttons") {
     ZStack {
         Color.black.ignoresSafeArea()
 
         VStack(spacing: 40) {
             ReaderControlsView(viewModel: ReaderViewModel.preview)
 
-            WPMDisplayView(wpm: 300)
+            WPMDisplayView(wpm: 300, highlightColor: ThemeColors.highlightRed)
 
             ReaderProgressBar(
                 progress: 0.45,
@@ -307,13 +361,28 @@ struct CompactReaderControls: View {
     .speedrTheme()
 }
 
-#Preview("Play/Pause States") {
+#Preview("Glass Circle Buttons") {
     ZStack {
         Color.black.ignoresSafeArea()
 
-        VStack(spacing: 20) {
-            PlayPauseButton(isPlaying: false) { }
-            PlayPauseButton(isPlaying: true) { }
+        HStack(spacing: 16) {
+            GlassCircleButton(systemImage: "minus", size: 50, isEnabled: true) { }
+            GlassCircleButton(systemImage: "backward.fill", size: 50, isEnabled: true) { }
+            GlassCircleButton(systemImage: "play.fill", size: 70, isPrimary: true, isEnabled: true) { }
+            GlassCircleButton(systemImage: "forward.fill", size: 50, isEnabled: true) { }
+            GlassCircleButton(systemImage: "plus", size: 50, isEnabled: true) { }
+        }
+    }
+    .speedrTheme()
+}
+
+#Preview("Music Button") {
+    ZStack {
+        Color.black.ignoresSafeArea()
+
+        HStack(spacing: 20) {
+            MusicButton(isPro: false) { }
+            MusicButton(isPro: true) { }
         }
     }
     .speedrTheme()

@@ -68,6 +68,18 @@ struct PaywallView: View {
             // Select yearly by default (recommended)
             selectedProduct = storeKit.yearlyProduct ?? storeKit.monthlyProduct
         }
+        .onChange(of: storeKit.products) { _, newProducts in
+            // Auto-select product when products load
+            if selectedProduct == nil && !newProducts.isEmpty {
+                selectedProduct = storeKit.yearlyProduct ?? storeKit.monthlyProduct
+            }
+        }
+        .task {
+            // Ensure products are loaded
+            if storeKit.products.isEmpty {
+                await storeKit.loadProducts()
+            }
+        }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -188,13 +200,23 @@ struct PaywallView: View {
                 await handlePurchase()
             }
         } label: {
-            Text("Continue")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: Constants.Layout.buttonHeight)
-                .background(selectedProduct != nil ? theme.accentBlue : theme.textSecondary)
-                .clipShape(RoundedRectangle(cornerRadius: Constants.Layout.buttonCornerRadius))
+            Group {
+                if storeKit.isLoading && storeKit.products.isEmpty {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .tint(.white)
+                        Text("Loading...")
+                    }
+                } else {
+                    Text("Continue")
+                }
+            }
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: Constants.Layout.buttonHeight)
+            .background(selectedProduct != nil ? theme.accentBlue : theme.textSecondary.opacity(0.6))
+            .clipShape(RoundedRectangle(cornerRadius: Constants.Layout.buttonCornerRadius))
         }
         .disabled(selectedProduct == nil || isPurchasing)
         .padding(.top, 8)

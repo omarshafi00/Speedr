@@ -130,7 +130,7 @@ enum PaywallTrigger: String, CaseIterable {
         case .documentLimit:
             return "Upgrade to Pro to import unlimited documents."
         case .speedLimit:
-            return "Upgrade to Pro to read at speeds up to 1500 WPM."
+            return "Unlock your full potential - read up to 1500 words per minute!"
         case .musicFeature:
             return "Upgrade to Pro to enjoy background music while reading."
         case .colorFeature:

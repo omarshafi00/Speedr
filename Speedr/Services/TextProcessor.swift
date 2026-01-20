@@ -22,19 +22,25 @@ struct TextProcessor {
             .filter { !$0.isEmpty }
     }
 
-    // MARK: - ORP (Optimal Recognition Point) Calculation
+    // MARK: - Highlight Letter Index Calculation
 
-    /// Calculate the Optimal Recognition Point index for a word
-    /// The ORP is approximately 35% from the start of the word
+    /// Calculate the index of the letter to highlight
+    /// Always returns the 2nd letter (index 1) for words with 2+ characters
+    /// For single-character words, returns index 0
     /// - Parameter word: The word to analyze
-    /// - Returns: The index of the ORP character (0-based)
-    static func findORPIndex(word: String) -> Int {
+    /// - Returns: The index of the character to highlight (0-based)
+    static func findHighlightIndex(word: String) -> Int {
         let length = word.count
+        // For single character words, highlight the only letter
         if length <= 1 { return 0 }
-        if length <= 3 { return 0 }  // First letter for short words
+        // Always highlight the 2nd letter (index 1)
+        return 1
+    }
 
-        // ORP is approximately 35% from the start
-        return Int(Double(length - 1) * 0.35)
+    /// Legacy ORP calculation - kept for backward compatibility
+    /// Now redirects to findHighlightIndex
+    static func findORPIndex(word: String) -> Int {
+        return findHighlightIndex(word: word)
     }
 
     /// Get the character at the ORP position
@@ -91,7 +97,8 @@ struct TextProcessor {
 
     // MARK: - Word Positioning
 
-    /// Calculate horizontal offset to align ORP with screen center
+    /// Calculate horizontal offset to align highlighted letter with focal point
+    /// The focal point is at 25% from the left of the display area
     /// - Parameters:
     ///   - word: The word to position
     ///   - fontSize: The font size being used
@@ -104,14 +111,20 @@ struct TextProcessor {
     ) -> CGFloat {
         guard !word.isEmpty else { return 0 }
 
-        let orpIndex = findORPIndex(word: word)
+        let highlightIndex = findHighlightIndex(word: word)
         let characterWidth = fontSize * characterWidthFactor
+
+        // Position of the highlighted letter's center
+        let highlightPosition = CGFloat(highlightIndex) * characterWidth + (characterWidth / 2)
+
+        // The highlighted letter should align with the focal point
+        // Since the word is displayed centered by default, we need to offset it
+        // so the 2nd letter aligns with where the focal point notches are
         let wordWidth = CGFloat(word.count) * characterWidth
-        let orpPosition = CGFloat(orpIndex) * characterWidth + (characterWidth / 2)
         let wordCenter = wordWidth / 2
 
-        // Offset needed to move ORP to center
-        return wordCenter - orpPosition
+        // Offset needed to move highlighted letter to focal point position
+        return wordCenter - highlightPosition
     }
 
     // MARK: - Timing Calculation

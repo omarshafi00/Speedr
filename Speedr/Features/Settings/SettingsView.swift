@@ -352,6 +352,7 @@ struct FontSizeSettingView: View {
                                         .foregroundColor(theme.accentBlue)
                                 }
                             }
+                            .contentShape(Rectangle()) // Make entire row tappable
                         }
                         .buttonStyle(.plain)
                     }
@@ -390,7 +391,11 @@ struct ThemeSettingView: View {
                             preferences.theme = themeOption
                         } label: {
                             HStack {
-                                Label(themeOption.displayName, systemImage: themeIcon(for: themeOption))
+                                Image(systemName: themeIcon(for: themeOption))
+                                    .foregroundColor(theme.textPrimary)
+                                    .frame(width: 24)
+
+                                Text(themeOption.displayName)
                                     .foregroundColor(theme.textPrimary)
 
                                 Spacer()
@@ -400,6 +405,7 @@ struct ThemeSettingView: View {
                                         .foregroundColor(theme.accentBlue)
                                 }
                             }
+                            .contentShape(Rectangle()) // Make entire row tappable
                         }
                         .buttonStyle(.plain)
                     }
@@ -411,8 +417,8 @@ struct ThemeSettingView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func themeIcon(for theme: AppTheme) -> String {
-        switch theme {
+    private func themeIcon(for themeValue: AppTheme) -> String {
+        switch themeValue {
         case .dark: return "moon.fill"
         case .light: return "sun.max.fill"
         case .auto: return "circle.lefthalf.filled"
