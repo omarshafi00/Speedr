@@ -318,34 +318,21 @@ struct ReaderView: View {
             // Focal point lines
             FocalPointOverlay()
 
-            // Current word
-            Text(styledCurrentWord)
-                .font(Typography.readerWord(size: viewModel.fontSize))
-                .offset(x: currentWordOffset)
-                .id(viewModel.currentIndex) // For animation
-                .transition(.opacity)
-                .animation(.easeInOut(duration: 0.05), value: viewModel.currentIndex)
+            // Current word - using AlignedWordView for precise notch alignment
+            AlignedWordView(
+                word: viewModel.currentWord,
+                highlightColor: viewModel.highlightColor,
+                fontSize: viewModel.fontSize
+            )
+            .id(viewModel.currentIndex) // For animation
+            .transition(.opacity)
+            .animation(.easeInOut(duration: 0.05), value: viewModel.currentIndex)
         }
         .frame(height: FocalPointConfig().totalHeight)
         .contentShape(Rectangle())
         .onTapGesture {
             viewModel.togglePlayPause()
         }
-    }
-
-    private var styledCurrentWord: AttributedString {
-        TextProcessor.createStyledWord(
-            viewModel.currentWord,
-            highlightColor: viewModel.highlightColor,
-            baseColor: theme.textPrimary
-        )
-    }
-
-    private var currentWordOffset: CGFloat {
-        TextProcessor.calculateWordOffset(
-            word: viewModel.currentWord,
-            fontSize: viewModel.fontSize
-        )
     }
 
     // MARK: - WPM Indicator

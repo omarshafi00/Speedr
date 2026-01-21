@@ -8,7 +8,102 @@
 
 import SwiftUI
 
+// MARK: - Aligned Word View (Primary - Used in Reader)
+
+/// Displays a word with the highlighted letter (2nd letter) precisely aligned with the focal point notches.
+/// This view splits the word into three parts and uses SwiftUI's layout system for pixel-perfect alignment.
+struct AlignedWordView: View {
+    /// The word to display
+    let word: String
+
+    /// Color for the highlighted character
+    var highlightColor: Color = ThemeColors.highlightRed
+
+    /// Font size for the word
+    var fontSize: CGFloat = Constants.Reader.defaultFontSize
+
+    @Environment(\.theme) private var theme
+
+    /// The focal point width (240pt)
+    private var focalPointWidth: CGFloat {
+        Constants.FocalPoint.lineLength * 2
+    }
+
+    /// Notch position from left edge (60pt = 25% of 240pt)
+    private var notchPositionFromLeft: CGFloat {
+        focalPointWidth * 0.25
+    }
+
+    var body: some View {
+        // Use the focal point width as the container
+        HStack(spacing: 0) {
+            // Left section: contains letters BEFORE the highlighted letter
+            // This section ends exactly at the notch position
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+                Text(beforeHighlight)
+                    .font(Typography.readerWord(size: fontSize))
+                    .foregroundColor(theme.textPrimary)
+            }
+            .frame(width: notchPositionFromLeft)
+
+            // Center: the highlighted letter - positioned exactly at the notch
+            Text(highlightedLetter)
+                .font(Typography.readerWord(size: fontSize))
+                .foregroundColor(highlightColor)
+
+            // Right section: contains letters AFTER the highlighted letter
+            HStack(spacing: 0) {
+                Text(afterHighlight)
+                    .font(Typography.readerWord(size: fontSize))
+                    .foregroundColor(theme.textPrimary)
+                Spacer(minLength: 0)
+            }
+            .frame(width: focalPointWidth - notchPositionFromLeft - highlightedLetterWidth)
+        }
+        .frame(width: focalPointWidth)
+    }
+
+    // MARK: - Word Parts
+
+    /// Letters before the highlighted letter
+    private var beforeHighlight: String {
+        guard word.count > 1 else { return "" }
+        let highlightIndex = TextProcessor.findHighlightIndex(word: word)
+        guard highlightIndex > 0 else { return "" }
+        let endIndex = word.index(word.startIndex, offsetBy: highlightIndex)
+        return String(word[..<endIndex])
+    }
+
+    /// The highlighted letter (2nd letter, index 1)
+    private var highlightedLetter: String {
+        guard !word.isEmpty else { return "" }
+        let highlightIndex = TextProcessor.findHighlightIndex(word: word)
+        guard highlightIndex < word.count else { return "" }
+        let index = word.index(word.startIndex, offsetBy: highlightIndex)
+        return String(word[index])
+    }
+
+    /// Letters after the highlighted letter
+    private var afterHighlight: String {
+        guard word.count > 1 else { return "" }
+        let highlightIndex = TextProcessor.findHighlightIndex(word: word)
+        guard highlightIndex + 1 < word.count else { return "" }
+        let startIndex = word.index(word.startIndex, offsetBy: highlightIndex + 1)
+        return String(word[startIndex...])
+    }
+
+    /// Approximate width of highlighted letter for right section calculation
+    private var highlightedLetterWidth: CGFloat {
+        // Use a reasonable estimate - the right section will use Spacer to absorb extra space
+        fontSize * 0.6
+    }
+}
+
+// MARK: - Legacy Word Display View
+
 /// Displays a single word with the ORP character highlighted and positioned at center
+/// Note: For precise alignment with notches, use AlignedWordView instead
 struct WordDisplayView: View {
     /// The word to display
     let word: String
@@ -160,7 +255,48 @@ struct CenteredWordDisplay: View {
 
 // MARK: - Previews
 
-#Preview("Word Display") {
+#Preview("Aligned Word - Notch Alignment Test") {
+    ZStack {
+        Color.black.ignoresSafeArea()
+
+        VStack(spacing: 20) {
+            // Test various words to verify the 2nd letter aligns with notches
+            ForEach(["I", "To", "The", "Read", "Hello", "People", "Reading", "Wonderful"], id: \.self) { word in
+                ZStack {
+                    // Focal point overlay for reference
+                    FocalPointOverlay()
+
+                    // The aligned word
+                    AlignedWordView(word: word)
+                }
+                .frame(height: 80)
+            }
+        }
+        .padding()
+    }
+    .speedrTheme()
+}
+
+#Preview("Aligned Word - Capital Letters Test") {
+    ZStack {
+        Color.black.ignoresSafeArea()
+
+        VStack(spacing: 20) {
+            // Test capital vs lowercase to verify alignment is consistent
+            ForEach(["HELLO", "Hello", "hello", "HeLLo", "Million", "MILLION"], id: \.self) { word in
+                ZStack {
+                    FocalPointOverlay()
+                    AlignedWordView(word: word)
+                }
+                .frame(height: 80)
+            }
+        }
+        .padding()
+    }
+    .speedrTheme()
+}
+
+#Preview("Word Display - Legacy") {
     ZStack {
         Color.black.ignoresSafeArea()
 
@@ -196,41 +332,14 @@ struct CenteredWordDisplay: View {
         Color.black.ignoresSafeArea()
 
         VStack(spacing: 30) {
-            WordDisplayView(word: "reading", highlightColor: ThemeColors.highlightRed)
-                .frame(height: 60)
+            AlignedWordView(word: "reading", highlightColor: ThemeColors.highlightRed)
 
-            WordDisplayView(word: "reading", highlightColor: .blue)
-                .frame(height: 60)
+            AlignedWordView(word: "reading", highlightColor: .blue)
 
-            WordDisplayView(word: "reading", highlightColor: .green)
-                .frame(height: 60)
+            AlignedWordView(word: "reading", highlightColor: .green)
 
-            WordDisplayView(word: "reading", highlightColor: .orange)
-                .frame(height: 60)
+            AlignedWordView(word: "reading", highlightColor: .orange)
         }
-    }
-    .speedrTheme()
-}
-
-#Preview("ORP Alignment Test") {
-    ZStack {
-        Color.black.ignoresSafeArea()
-
-        VStack(spacing: 0) {
-            // Vertical center line for reference
-            Rectangle()
-                .fill(Color.red.opacity(0.3))
-                .frame(width: 2)
-                .frame(maxHeight: .infinity)
-        }
-        .overlay(
-            VStack(spacing: 20) {
-                ForEach(["I", "am", "fast", "reader", "comprehension"], id: \.self) { word in
-                    WordDisplayView(word: word)
-                        .frame(height: 50)
-                }
-            }
-        )
     }
     .speedrTheme()
 }
