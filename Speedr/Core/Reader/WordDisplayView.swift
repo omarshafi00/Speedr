@@ -31,20 +31,20 @@ struct AlignedWordView: View {
         Constants.FocalPoint.lineLength * 2
     }
 
-    /// Extra padding on each side beyond the focal point lines (40pt each side)
+    /// Extra padding on each side beyond the focal point lines (60pt each side)
     private var sidePadding: CGFloat {
-        40
+        60
     }
 
-    /// Total container width (320pt = 240pt + 40pt on each side)
+    /// Total container width (360pt = 240pt + 60pt on each side)
     private var containerWidth: CGFloat {
         focalPointWidth + (sidePadding * 2)
     }
 
     /// Notch position from left edge of the CONTAINER
-    /// The notch is at 10% of focal point width (24pt) + left side padding (40pt) = 64pt from container left
+    /// The notch is at 20% of focal point width (48pt) + left side padding (60pt) = 108pt from container left
     private var notchPositionFromContainerLeft: CGFloat {
-        sidePadding + (focalPointWidth * 0.10)
+        sidePadding + (focalPointWidth * 0.20)
     }
 
     /// Approximate width of highlighted letter
