@@ -181,8 +181,7 @@ struct SettingsView: View {
         switch preferences.fontSize {
         case ...0.8: return "Small"
         case 0.8...1.1: return "Medium"
-        case 1.1...1.3: return "Large"
-        default: return "Extra Large"
+        default: return "Large"
         }
     }
 
@@ -315,8 +314,7 @@ struct FontSizeSettingView: View {
     private let fontSizes: [(label: String, value: Double)] = [
         ("Small", 0.75),
         ("Medium", 1.0),
-        ("Large", 1.25),
-        ("Extra Large", 1.5)
+        ("Large", 1.25)
     ]
 
     var body: some View {

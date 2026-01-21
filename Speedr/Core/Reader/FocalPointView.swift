@@ -4,20 +4,20 @@
 //
 //  Reference: PROJECT_SPEC.md - "FOCAL POINT STRUCTURE"
 //
-//  Structure (notches at 25% from left):
-//      ────────┬────────────────────────────────
-//              │  (8pt notch)
+//  Structure (notches at 10% from left):
+//      ───┬────────────────────────────────────
+//         │  (8pt notch)
 //
-//           word here (2nd letter aligned with notch)
+//           word here (2nd letter centered on notch)
 //
-//              │  (8pt notch)
-//      ────────┴────────────────────────────────
+//         │  (8pt notch)
+//      ───┴────────────────────────────────────
 //
 
 import SwiftUI
 
 /// Displays the focal point lines and notches for the RSVP reader
-/// Notches are positioned at 25% from the left of the total line width
+/// Notches are positioned at 10% from the left of the total line width
 struct FocalPointView: View {
     @Environment(\.theme) private var theme
 
@@ -42,7 +42,7 @@ struct FocalPointView: View {
 
 // MARK: - Focal Line View
 
-/// Individual focal line (top or bottom) with notch at 25% from left
+/// Individual focal line (top or bottom) with notch at 10% from left
 struct FocalLineView: View {
     enum Position {
         case top
@@ -73,10 +73,10 @@ struct FocalLineView: View {
         }
     }
 
-    /// Notch positioned at 25% from the left
+    /// Notch positioned at 10% from the left
     private var notchWithOffset: some View {
         HStack(spacing: 0) {
-            // Left spacer (25% of total width minus half the notch width)
+            // Left spacer (10% of total width minus half the notch width)
             Spacer()
                 .frame(width: config.notchOffsetFromLeft - config.notchWidth / 2)
 
@@ -117,9 +117,9 @@ struct FocalPointConfig {
     /// Estimated height for word area
     let wordAreaHeight: CGFloat = 60
 
-    /// Notch position: 25% from the left of the total width
+    /// Notch position: 10% from the left of the total width
     var notchOffsetFromLeft: CGFloat {
-        totalWidth * 0.25
+        totalWidth * 0.10
     }
 
     /// Total height of the focal point structure
@@ -146,7 +146,7 @@ struct FocalPointOverlay: View {
                     .fill(theme.focalLines.opacity(config.lineOpacity))
                     .frame(width: config.totalWidth, height: config.lineWidth)
 
-                // Notch at 25% from left
+                // Notch at 10% from left
                 HStack(spacing: 0) {
                     Spacer()
                         .frame(width: config.notchOffsetFromLeft - config.notchWidth / 2)
@@ -164,7 +164,7 @@ struct FocalPointOverlay: View {
 
             // Bottom focal line with notch pointing up
             VStack(spacing: 0) {
-                // Notch at 25% from left
+                // Notch at 10% from left
                 HStack(spacing: 0) {
                     Spacer()
                         .frame(width: config.notchOffsetFromLeft - config.notchWidth / 2)

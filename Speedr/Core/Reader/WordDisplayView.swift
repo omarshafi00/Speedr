@@ -12,6 +12,7 @@ import SwiftUI
 
 /// Displays a word with the highlighted letter (2nd letter) precisely aligned with the focal point notches.
 /// This view splits the word into three parts and uses SwiftUI's layout system for pixel-perfect alignment.
+/// The middle of the highlighted letter is centered on the notch position.
 struct AlignedWordView: View {
     /// The word to display
     let word: String
@@ -29,37 +30,48 @@ struct AlignedWordView: View {
         Constants.FocalPoint.lineLength * 2
     }
 
-    /// Notch position from left edge (60pt = 25% of 240pt)
+    /// Notch position from left edge (24pt = 10% of 240pt)
     private var notchPositionFromLeft: CGFloat {
-        focalPointWidth * 0.25
+        focalPointWidth * 0.10
+    }
+
+    /// Approximate width of highlighted letter
+    private var highlightedLetterWidth: CGFloat {
+        fontSize * 0.6
+    }
+
+    /// Half the width of the highlighted letter (for centering)
+    private var halfHighlightedLetterWidth: CGFloat {
+        highlightedLetterWidth / 2
     }
 
     var body: some View {
         // Use the focal point width as the container
         HStack(spacing: 0) {
             // Left section: contains letters BEFORE the highlighted letter
-            // This section ends exactly at the notch position
+            // This section ends at (notch position - half letter width) so the letter's center is at the notch
             HStack(spacing: 0) {
                 Spacer(minLength: 0)
                 Text(beforeHighlight)
                     .font(Typography.readerWord(size: fontSize))
                     .foregroundColor(theme.textPrimary)
             }
-            .frame(width: notchPositionFromLeft)
+            .frame(width: max(0, notchPositionFromLeft - halfHighlightedLetterWidth))
 
-            // Center: the highlighted letter - positioned exactly at the notch
+            // Center: the highlighted letter - its CENTER is positioned at the notch
             Text(highlightedLetter)
                 .font(Typography.readerWord(size: fontSize))
                 .foregroundColor(highlightColor)
 
             // Right section: contains letters AFTER the highlighted letter
+            // Uses remaining space after notch + half letter width
             HStack(spacing: 0) {
                 Text(afterHighlight)
                     .font(Typography.readerWord(size: fontSize))
                     .foregroundColor(theme.textPrimary)
                 Spacer(minLength: 0)
             }
-            .frame(width: focalPointWidth - notchPositionFromLeft - highlightedLetterWidth)
+            .frame(width: focalPointWidth - notchPositionFromLeft - halfHighlightedLetterWidth)
         }
         .frame(width: focalPointWidth)
     }
@@ -93,11 +105,6 @@ struct AlignedWordView: View {
         return String(word[startIndex...])
     }
 
-    /// Approximate width of highlighted letter for right section calculation
-    private var highlightedLetterWidth: CGFloat {
-        // Use a reasonable estimate - the right section will use Spacer to absorb extra space
-        fontSize * 0.6
-    }
 }
 
 // MARK: - Legacy Word Display View
