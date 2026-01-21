@@ -13,6 +13,7 @@ import SwiftUI
 /// Displays a word with the highlighted letter (2nd letter) precisely aligned with the focal point notches.
 /// This view splits the word into three parts and uses SwiftUI's layout system for pixel-perfect alignment.
 /// The middle of the highlighted letter is centered on the notch position.
+/// The container is wider than the focal point lines to allow more space for displaying words.
 struct AlignedWordView: View {
     /// The word to display
     let word: String
@@ -25,14 +26,25 @@ struct AlignedWordView: View {
 
     @Environment(\.theme) private var theme
 
-    /// The focal point width (240pt)
+    /// The focal point width (240pt) - where the lines are drawn
     private var focalPointWidth: CGFloat {
         Constants.FocalPoint.lineLength * 2
     }
 
-    /// Notch position from left edge (24pt = 10% of 240pt)
-    private var notchPositionFromLeft: CGFloat {
-        focalPointWidth * 0.10
+    /// Extra padding on each side beyond the focal point lines (40pt each side)
+    private var sidePadding: CGFloat {
+        40
+    }
+
+    /// Total container width (320pt = 240pt + 40pt on each side)
+    private var containerWidth: CGFloat {
+        focalPointWidth + (sidePadding * 2)
+    }
+
+    /// Notch position from left edge of the CONTAINER
+    /// The notch is at 10% of focal point width (24pt) + left side padding (40pt) = 64pt from container left
+    private var notchPositionFromContainerLeft: CGFloat {
+        sidePadding + (focalPointWidth * 0.10)
     }
 
     /// Approximate width of highlighted letter
@@ -46,7 +58,7 @@ struct AlignedWordView: View {
     }
 
     var body: some View {
-        // Use the focal point width as the container
+        // Use the expanded container width
         HStack(spacing: 0) {
             // Left section: contains letters BEFORE the highlighted letter
             // This section ends at (notch position - half letter width) so the letter's center is at the notch
@@ -56,7 +68,7 @@ struct AlignedWordView: View {
                     .font(Typography.readerWord(size: fontSize))
                     .foregroundColor(theme.textPrimary)
             }
-            .frame(width: max(0, notchPositionFromLeft - halfHighlightedLetterWidth))
+            .frame(width: max(0, notchPositionFromContainerLeft - halfHighlightedLetterWidth))
 
             // Center: the highlighted letter - its CENTER is positioned at the notch
             Text(highlightedLetter)
@@ -71,9 +83,9 @@ struct AlignedWordView: View {
                     .foregroundColor(theme.textPrimary)
                 Spacer(minLength: 0)
             }
-            .frame(width: focalPointWidth - notchPositionFromLeft - halfHighlightedLetterWidth)
+            .frame(width: containerWidth - notchPositionFromContainerLeft - halfHighlightedLetterWidth)
         }
-        .frame(width: focalPointWidth)
+        .frame(width: containerWidth)
     }
 
     // MARK: - Word Parts
